@@ -6,6 +6,8 @@ from itertools import combinations
 from operator import add
 import copy
 import math
+import firebase_admin
+from firebase_admin import credentials, storage
 
 os.environ['PYSPARK_PYTHON'] = sys.executable
 os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
@@ -19,8 +21,8 @@ sc = spark.sparkContext
 start_time = time.time()
 frequent_itemsets_rdd = ""
 rdd_size = 0
-case_number = 2
-support = 3
+case_number = 1
+support = 5
 
 
 def read_data():
@@ -29,14 +31,14 @@ def read_data():
 
     if case_number == 1:
         #user_id ka case
-        frequent_itemsets_rdd = sc.textFile("small1.csv")\
+        frequent_itemsets_rdd = sc.textFile("small5.csv")\
             .filter(lambda x: x != "user_id,business_id")\
             .map(lambda x: x.split(","))\
             .groupByKey()\
             .map(lambda x: (set(x[1])))
     else:
         #business_id ka case
-        frequent_itemsets_rdd = sc.textFile("small1.csv") \
+        frequent_itemsets_rdd = sc.textFile("small5.csv") \
             .filter(lambda x: x != "user_id,business_id") \
             .map(lambda x: x.split(",")) \
             .map(lambda x: [x[1], x[0]]) \
@@ -150,6 +152,8 @@ def son_algorithm():
         .map(lambda x: (x[0], sorted(list(x[1]))))\
         .sortByKey()
 
+
+
     write_output(candidates.collect(), frequent_itemsets.collect())
     print("Duration: ", time.time() - start_time)
     print("Hello World ")
@@ -157,6 +161,41 @@ def son_algorithm():
 
 read_data()
 son_algorithm()
+
+
+cred_json={
+"type": "service_account",
+"project_id": "ieee-3db33",
+"private_key_id": "3425a51e45a7e544dd526f4ced115a254ff879a2",
+"private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDhI6b51iQ5+4nA\nytdaPGr9a8HchyDWQ04nFoQMPiMe7zDe2zhJIbAv3mw1CoSb+evKq0wi6XLX6jPJ\nJ6Mg8Ptkprlh2SJP5PU9PRhkbKr2lWfEbrBK4Hm9f704i0/3dKOOWXbIWlOgLWYC\nUd5/Hivx8p0NkFTNl9xJaNXws3bVkCBTiEigLYGb/uQ0CHTk0gKZVfudgr0qangi\nj5h8mfcURslD/29Ieh50hBOcbxE/o14AkdeJI5AyysqTkAo/nhL4CA7Sp69tciG1\nRJHLoySx4M14ik9gDzZ8Wet1nIxXF1m7wmH2m64fOYeN7IiFRDZgvKYFbYP+DYOQ\nx5fcoPznAgMBAAECggEAAkRjaktJV6YiNk4GEFNVJ++x/h1hVGh7vNqTDe3Hh8Kg\nOZZJdZZXwluk5k7tq5FWZb+SqmJtKTmMCVFNjAHIgTRJgszfdbfeBfuekCBTd9zZ\nBhFqAj2Qt+k1h7qOUgC+XisCvPo3JxgvZRtnT5cHU84VOxBq+AStD57pgPprfT8j\nDtKqpEUlcUacy2A5T9Uy8qXxvGbjyv+ApqllLummgZUWQbrxYG+YM4GUpRgmdB9U\nUvfY9p80tOD//EBSCqF4Oyd+bUqffZD3BxVraX2LZ8qW9rlM+DrPewhDdBB0m4U7\nkjTS5qwOTlm6u0FUfGznqwj344Us4ia3FKRX/D677QKBgQD1dyLQKM9WvBDbUJ5o\n/Jy0582eQoW83EmgdauYJlmpw5Ry4OxzPEX9Oa+ulmOdL5+hoFQDTMRbbvB7zBkN\naiff1ZOoGHwbCuqSedCdjFKNh8WLBtZcY7cjoBV4qkJ/tNxQ19ENJiV3KRmy8QcT\nX7ma0PMd/FmKSxLjWnjAQuFjnQKBgQDqzTLYUjYPaqM62DFx/gzVtrAU7f2vDBZd\nNbcVAXPauOa7WT8F83WY7hvnkvgcKrAcLdFZDWwt6Jait1YUEv5I5bsTCmB0YTly\nwVYIvEXAfLbwnZMhoN2yMR++d6uH8bCWZM2nvU/6ra2UA9N8METNIY0wUgPBiaoC\nnoZ1DkglUwKBgQCbGGCdx/th4UiBWooM6fgV8hUgdwXLlCDNSyxV4X1r35DvmSCt\nmxrZ6lYP6SQd0FZ7qDMNNrcm0o0Om6IEsNtq+abnYjkgWSBn1qIyudP7axstQe+1\nxqeT0fVfHa0QxfUi+4oyVbT8erKrNtHystwybu3+N1FYKSFRF/wN9vQ0nQKBgAKj\nC08inTjPGcYvZ17AW6SKyK9zfMXafOXPFJ9HxOVP7kdsWSjX8xokkmunWuH2GMQ4\nP4GghPZ/BjINnQncrL5k1hUAqNSlwt9nDHBMrPvcarGJE33tMJAvvQuGjIaaUEFg\nIG8h0SQfjzN6V4WthRhIqC1CvogN47rjzN7DqkvBAoGAFL92rRbFjmXWak/65uB4\nc6rdv6dza9aWEo9e26AE/fzsJxTe0f6ued4TG/bWFdzJIMltLouDRZ9FhmP+sRyw\n7UPexKUfi9AanBnh+0eMOnCezKjuiwgGkwGwQ6adddFSB1U00Umf9xmVBczHug9I\nOOKxF8KF0qAKWDn6Gveevmw=\n-----END PRIVATE KEY-----\n",
+"client_email": "firebase-adminsdk-v76aj@ieee-3db33.iam.gserviceaccount.com",
+"client_id": "110580532928577646626",
+"auth_uri": "https://accounts.google.com/o/oauth2/auth",
+"token_uri": "https://oauth2.googleapis.com/token",
+"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+"client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-v76aj%40ieee-3db33.iam.gserviceaccount.com",
+"universe_domain": "googleapis.com"
+}
+
+cred = credentials.Certificate(cred_json)
+firebase_admin.initialize_app(cred, {
+'storageBucket': 'ieee-3db33.appspot.com'
+})
+
+def upload_file(local_file, storage_path):
+    bucket = storage.bucket()
+    blob = bucket.blob(storage_path)
+    blob.upload_from_filename(local_file)
+
+    # Make the file public
+    blob.make_public()
+
+    # Get the public URL
+    public_url = blob.public_url
+    print(f"File {local_file} uploaded to {storage_path}. Public URL: {public_url}")
+    return public_url
+
+public_url = upload_file("task1_output_n_c1_sup4.txt", "videos/task1_output_n_c1_sup4.txt")
 
 # list_of_sets = [{1, 2, 3}, {4, 5}, {6, 7, 8, 9}]
 # largest_size = get_largest_set_size(list_of_sets)
